@@ -5,7 +5,7 @@ import os
 import regex as re
 from functools import lru_cache
 
-from ..utils.file_utils import http_get
+from ...utils.file_utils import http_get
 from .base_tokenizer import BaseTokenizer
 
 logger = logging.getLogger(__name__)

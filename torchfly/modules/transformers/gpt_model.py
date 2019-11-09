@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torch.utils.checkpoint
 import math
 
-from ..utils.file_utils import gdrive_download
+# from ...utils.file_utils import gdrive_download
 # from ..cuda import gpt_gelu as gelu
 # assert installed
 from apex.normalization.fused_layer_norm import FusedLayerNorm as LayerNorm
@@ -58,25 +58,6 @@ class Attention(nn.Module):
 
         self.attn_dropout = nn.Dropout(config.attn_pdrop)
         self.resid_dropout = nn.Dropout(config.resid_pdrop)
-
-    def prune_heads(self, heads):
-        if len(heads) == 0:
-            return
-        mask = torch.ones(self.n_head, self.split_size // self.n_head)
-        for head in heads:
-            mask[head] = 0
-        mask = mask.view(-1).contiguous().eq(1)
-        index = torch.arange(len(mask))[mask].long()
-        index_attn = torch.cat(
-            [index, index + self.split_size, index + (2 * self.split_size)]
-        )
-        # Prune conv1d layers
-        self.c_attn = prune_conv1d_layer(self.c_attn, index_attn, dim=1)
-        self.c_proj = prune_conv1d_layer(self.c_proj, index, dim=0)
-        # Update hyper params
-        self.split_size = (self.split_size //
-                           self.n_head) * (self.n_head - len(heads))
-        self.n_head = self.n_head - len(heads)
 
     def _attn(self, q, k, v, mask):
         w = torch.matmul(q, k)
@@ -199,12 +180,12 @@ class GPT2Model(nn.Module):
 
         self.apply(self.init_weights)
 
-    def load_pretrained(self, modelname):
-        if modelname == "unified-gpt2-small":
-            url = "https://drive.google.com/uc?id=1C5uuC2RNMwIjLC5UInmoEVXbX-U1OEvF"
-            filepath = gdrive_download(url, "models", "unified-gpt2-small.pth")
-            states_dict = torch.load(filepath)
-            return states_dict
+    # def load_pretrained(self, modelname):
+    #     if modelname == "unified-gpt2-small":
+    #         url = "https://drive.google.com/uc?id=1C5uuC2RNMwIjLC5UInmoEVXbX-U1OEvF"
+    #         filepath = gdrive_download(url, "models", "unified-gpt2-small.pth")
+    #         states_dict = torch.load(filepath)
+    #         return states_dict
 
     def init_weights(self, module):
         """ Initialize the weights.
