@@ -5,7 +5,6 @@ import os
 
 
 def http_get(url, filename, proxies=None):
-
     req = requests.get(url, stream=True, proxies=proxies)
     content_length = req.headers.get('Content-Length')
     total = int(content_length) if content_length is not None else None

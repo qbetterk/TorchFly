@@ -180,13 +180,6 @@ class GPT2Model(nn.Module):
 
         self.apply(self.init_weights)
 
-    # def load_pretrained(self, modelname):
-    #     if modelname == "unified-gpt2-small":
-    #         url = "https://drive.google.com/uc?id=1C5uuC2RNMwIjLC5UInmoEVXbX-U1OEvF"
-    #         filepath = gdrive_download(url, "models", "unified-gpt2-small.pth")
-    #         states_dict = torch.load(filepath)
-    #         return states_dict
-
     def init_weights(self, module):
         """ Initialize the weights.
         """
@@ -309,19 +302,3 @@ class GPT2SimpleLM(nn.Module):
         )
         lm_logits = self.lm_head(hidden_states)
         return lm_logits, presents
-
-
-class GPT2SmallConfig:
-    vocab_size = 50265
-    n_special = 0
-    n_positions = 1024
-    n_ctx = 1024
-    n_embd = 768
-    n_layer = 12
-    n_head = 12
-    resid_pdrop = 0.0
-    embd_pdrop = 0.0
-    attn_pdrop = 0.0
-    layer_norm_epsilon = 1e-5
-    initializer_range = 0.02
-    gradient_checkpointing = False
