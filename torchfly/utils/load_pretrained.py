@@ -8,3 +8,5 @@ def get_pretrained_states(modelname=None, url=None):
         filepath = gdrive_download(url, "models", "unified-gpt2-small.pth")
         states_dict = torch.load(filepath)
         return states_dict
+    else:
+        raise NotImplementedError

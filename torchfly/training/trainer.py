@@ -8,11 +8,11 @@ class BaseTrainer(ABC):
     An abstract class for trainer
     """
     @abstractmethod
-    def train_one_step(self, batch):
+    def train_one_iter(self, batch):
         pass
 
     @abstractmethod
-    def eval_one_step(self, batch):
+    def eval_one_iter(self, batch):
         pass
 
     @abstractmethod
@@ -25,7 +25,8 @@ class BaseTrainer(ABC):
 
 
 class CommonTrainer(BaseTrainer):
-    def __init__(self, args, model:nn.Module):
+    def __init__(self, args, model: nn.Module):
         pass
 
-    def train_one_step(self, batch)
+    def train_one_step(self, batch):
+        pass
