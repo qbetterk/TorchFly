@@ -61,7 +61,7 @@ def get_pairs(word):
     return pairs
 
 
-class UnifiedTokenizer(BaseTokenizer):
+class UnifiedBPETokenizer(BaseTokenizer):
     """
     RoBERTa BPE tokenizer, derived from the GPT-2 tokenizer. Peculiarities:
         - Byte-level Byte-Pair-Encoding
@@ -74,7 +74,7 @@ class UnifiedTokenizer(BaseTokenizer):
     #TODO: write a C++ version to speed up?
 
     def __init__(self, vocab_file=None, merges_file=None, errors='replace'):
-        super(UnifiedTokenizer, self).__init__(
+        super(UnifiedBPETokenizer, self).__init__(
             max_len=512, special_tokens=["<s>", "<pad>", "</s>", "<unk>", "<mask>", "<madeupword0000>", "<madeupword0001>", "<madeupword0002>"]
         )
 
@@ -99,6 +99,11 @@ class UnifiedTokenizer(BaseTokenizer):
         self.pat = re.compile(
             r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
         )
+
+        # set bos and eos
+        setattr(self, "bos", "<s>")
+        setattr(self, "eos", "</s>")
+        setattr(self, "pad", "<pad>")
 
     def load_from_cache(self):
         vocab_path = os.path.join(
