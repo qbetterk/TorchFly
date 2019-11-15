@@ -110,8 +110,8 @@ class BaseArguments:
                                   default=-1,
                                   help="For distributed training: local_rank")
 
-    def add_argument(self, **kwargs):
-        self._parser.add_argument(**kwargs)
+    def add_argument(self, *args, **kwargs):
+        self._parser.add_argument(*args, **kwargs)
 
     def parse_args(self, arguments=None):
         is_notebook = check_if_notebook()
