@@ -1,14 +1,11 @@
 import torch
 import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel
+from apex import amp
 import logging
 
-try:
-    from apex import amp
-except ImportError:
-    raise ImportError(
-        "Please install apex from https://www.github.com/nvidia/apex to run this example."
-    )
+# pylint:disable=no-member
+
 
 logger = logging.getLogger(__name__)
 

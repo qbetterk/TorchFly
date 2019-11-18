@@ -15,3 +15,10 @@ def get_pretrained_states(modelname=None, url=None, gdrive=True):
         filepath = gdrive_download(url, "models", "unified-gpt2-small.pth")
         states_dict = torch.load(filepath)
         return states_dict
+    elif modelname == "roberta-base":
+        url = "https://drive.google.com/uc?id=1Ai4W4VluXEMI_CuSm55KaCqJyt7Lod4Q"
+        filepath = gdrive_download(url, "models", "roberta-base.pth")
+        states_dict = torch.load(filepath)
+        return states_dict
+    else:
+        raise NotImplementedError
