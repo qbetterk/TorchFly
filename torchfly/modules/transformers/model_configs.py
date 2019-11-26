@@ -45,3 +45,45 @@ class UnifiedGPT2SmallConfig:
     layer_norm_epsilon = 1e-5
     initializer_range = 0.02
     gradient_checkpointing = False
+
+class UnifiedGPT2LargeConfig:
+    vocab_size = 50265
+    n_positions = 1024
+    n_ctx = 1024
+    n_embd = 1280
+    n_layer = 36
+    n_head = 20
+    resid_pdrop = 0.1
+    embd_pdrop = 0.1
+    attn_pdrop = 0.1
+    layer_norm_epsilon = 1e-5
+    initializer_range = 0.02
+    gradient_checkpointing = True
+    
+class UnifiedGPT2XLConfig:
+    vocab_size = 50265
+    n_positions = 1024
+    n_ctx = 1024
+    n_embd = 1600
+    n_layer = 48
+    n_head = 25
+    resid_pdrop = 0.1
+    embd_pdrop = 0.1
+    attn_pdrop = 0.1
+    layer_norm_epsilon = 1e-5
+    initializer_range = 0.02
+    gradient_checkpointing = True
+    
+class UnifiedGPT2DistillConfig:
+    vocab_size = 50265
+    n_positions = 1024
+    n_ctx = 1024
+    n_embd = 768
+    n_layer = 6
+    n_head = 12
+    resid_pdrop = 0.1
+    embd_pdrop = 0.1
+    attn_pdrop = 0.1
+    layer_norm_epsilon = 1e-5
+    initializer_range = 0.02
+    gradient_checkpointing = True
