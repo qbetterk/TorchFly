@@ -16,7 +16,7 @@ def get_pretrained_states(modelname=None, url=None, gdrive=True):
         states_dict = torch.load(filepath)
         return states_dict    
     if modelname == "unified-gpt2-medium":
-        url = "https://drive.google.com/file/d/1QAqXk5LLaDbccrqfwL6wZYjZ4UHdpxMr/view?usp=sharing"
+        url = "https://drive.google.com/uc?id=1QAqXk5LLaDbccrqfwL6wZYjZ4UHdpxMr"
         filepath = gdrive_download(url, "models", "unified-gpt2-medium.pth")
         print(filepath)
         states_dict = torch.load(filepath)
