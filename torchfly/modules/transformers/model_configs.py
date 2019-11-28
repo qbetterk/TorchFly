@@ -16,6 +16,7 @@ class UnifiedRobertaBaseConfig:
     vocab_size = 50265
     padding_idx = 1
     type_vocab_size = 1
+    padding_value = 1
 
 class UnifiedGPT2MediumConfig:
     vocab_size = 50265
@@ -30,6 +31,7 @@ class UnifiedGPT2MediumConfig:
     layer_norm_epsilon = 1e-5
     initializer_range = 0.02
     gradient_checkpointing = True
+    padding_value = 1
 
 
 class UnifiedGPT2SmallConfig:
@@ -45,3 +47,4 @@ class UnifiedGPT2SmallConfig:
     layer_norm_epsilon = 1e-5
     initializer_range = 0.02
     gradient_checkpointing = False
+    padding_value = 1
