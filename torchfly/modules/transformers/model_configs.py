@@ -62,6 +62,7 @@ class UnifiedGPT2LargeConfig:
     layer_norm_epsilon = 1e-5
     initializer_range = 0.02
     gradient_checkpointing = True
+    padding_value = 1
     
 class UnifiedGPT2XLConfig:
     vocab_size = 50265
@@ -76,6 +77,7 @@ class UnifiedGPT2XLConfig:
     layer_norm_epsilon = 1e-5
     initializer_range = 0.02
     gradient_checkpointing = True
+    padding_value = 1
     
 class UnifiedGPT2DistillConfig:
     vocab_size = 50265
@@ -90,3 +92,4 @@ class UnifiedGPT2DistillConfig:
     layer_norm_epsilon = 1e-5
     initializer_range = 0.02
     gradient_checkpointing = True
+    padding_value = 1
