@@ -2,7 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-def top_filtering(logits, top_k=0, top_p=0.0, filter_value=-float('Inf')):
+# pylint:disable=no-member
+
+
+def top_filtering(logits, top_k=0, top_p=0.0, filter_value=-1e5):
     """ Filter a distribution of logits using top-k, top-p (nucleus) and/or threshold filtering
         Args:
             logits: logits distribution shape (vocabulary size)
@@ -16,21 +19,26 @@ def top_filtering(logits, top_k=0, top_p=0.0, filter_value=-float('Inf')):
     if top_k > 0:
         values, _ = torch.topk(logits, top_k)
         min_values = values[:, -1].unsqueeze(1).repeat(1, logits.shape[-1])
-        logits = torch.where(logits < min_values, 
-                             torch.ones_like(logits, dtype=logits.dtype) * -float('Inf'), 
-                             logits)
+        logits = torch.where(
+            logits < min_values,
+            torch.ones_like(logits, dtype=logits.dtype) * filter_value, logits)
     if top_p > 0.0:
         # Compute cumulative probabilities of sorted tokens
         sorted_logits, sorted_indices = torch.sort(logits, descending=True)
-        cumulative_probabilities = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
+        cumulative_probabilities = torch.cumsum(F.softmax(sorted_logits,
+                                                          dim=-1),
+                                                dim=-1)
 
         # Remove tokens with cumulative probability above the threshold
         sorted_indices_to_remove = cumulative_probabilities > top_p
         # Shift the indices to the right to keep also the first token above the threshold
-        sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+        sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[
+            ..., :-1].clone()
         sorted_indices_to_remove[..., 0] = 0
-        
-        sorted_logits = sorted_logits.masked_fill_(sorted_indices_to_remove, filter_value)
-        logits = torch.zeros_like(logits).scatter(1, sorted_indices, sorted_logits)
-    
+
+        sorted_logits = sorted_logits.masked_fill_(sorted_indices_to_remove,
+                                                   filter_value)
+        logits = torch.zeros_like(logits).scatter(1, sorted_indices,
+                                                  sorted_logits)
+
     return logits
