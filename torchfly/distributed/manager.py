@@ -20,6 +20,9 @@ class DistributedManager:
         self.rank = args.local_rank
         self.main_rank = 0
 
+        # fp16 handle
+        amp.register_float_function(torch, 'multinomial')
+
         if args.local_rank != -1:
             torch.cuda.set_device(args.local_rank)
             device = torch.device("cuda", args.local_rank)
