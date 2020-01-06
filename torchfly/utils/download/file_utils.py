@@ -19,6 +19,19 @@ def http_get(url, filename, proxies=None):
     progress.close()
 
 
+def http_download(url, folder, filename):
+    cache_dir = os.path.join(os.getenv("HOME"), ".cache", "torchfly", folder)
+    os.makedirs(cache_dir, exist_ok=True)
+    filepath = os.path.join(cache_dir, filename)
+
+    if not os.path.exists(filepath):
+        http_get(url, filepath)
+    else:
+        print(f"{filename} exists!")
+
+    return filepath
+
+
 def gdrive_download(url, folder, filename):
     cache_dir = os.path.join(os.getenv("HOME"), ".cache", "torchfly", folder)
     os.makedirs(cache_dir, exist_ok=True)
