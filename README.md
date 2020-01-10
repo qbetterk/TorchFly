@@ -1,5 +1,4 @@
-![TorchFly Logo](doc/torchfly.svg)
-
+<img src="doc/torchfly.svg" width="300" >
 
 --------------------------------------------------------------------------------
 
