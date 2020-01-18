@@ -18,9 +18,7 @@ def gelu(x):
     """ GELU Activation Function
         math.sqrt(2 / math.pi) = 0.7978845608028654
     """
-    return 0.5 * x * (
-        1 + torch.tanh(0.7978845608028654 * (x + 0.044715 * torch.pow(x, 3)))
-    )
+    return 0.5 * x * (1 + torch.tanh(0.7978845608028654 * (x + 0.044715 * torch.pow(x, 3))))
 
 
 class Conv1D(nn.Module):
@@ -91,8 +89,7 @@ class Attention(nn.Module):
         value = self.split_heads(value)
         if layer_past is not None:
             # transpose back cf below
-            past_key, past_value = layer_past[0].transpose(-2,
-                                                           -1), layer_past[1]
+            past_key, past_value = layer_past[0].transpose(-2, -1), layer_past[1]
             key = torch.cat((past_key, key), dim=-1)
             value = torch.cat((past_value, value), dim=-2)
         # transpose to have same shapes for stacking
@@ -170,12 +167,7 @@ class GPT2Model(nn.Module):
         # position embedding
         self.wpe = nn.Embedding(config.n_positions, config.n_embd)
 
-        self.h = nn.ModuleList(
-            [
-                Block(config.n_ctx, config, scale=True)
-                for _ in range(config.n_layer)
-            ]
-        )
+        self.h = nn.ModuleList([Block(config.n_ctx, config, scale=True) for _ in range(config.n_layer)])
         self.ln_f = LayerNorm(config.n_embd, eps=config.layer_norm_epsilon)
 
         self.apply(self.init_weights)
@@ -184,9 +176,7 @@ class GPT2Model(nn.Module):
         """ Initialize the weights.
         """
         if isinstance(module, (nn.Linear, nn.Embedding)):
-            module.weight.data.normal_(
-                mean=0.0, std=self.config.initializer_range
-            )
+            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
         elif isinstance(module, LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
@@ -212,10 +202,7 @@ class GPT2Model(nn.Module):
 
         if position_ids is None:
             position_ids = torch.arange(
-                past_length,
-                input_shape[-1] + past_length,
-                dtype=torch.long,
-                device=input_ids.device
+                past_length, input_shape[-1] + past_length, dtype=torch.long, device=input_ids.device
             )
             position_ids = position_ids.unsqueeze(0).expand(input_shape)
 
@@ -230,9 +217,7 @@ class GPT2Model(nn.Module):
         for block, layer_past in zip(self.h, past):
             # added gradient checkpointing
             if self.gradient_checkpointing:
-                hidden_states, present = torch.utils.checkpoint.checkpoint(
-                    block, hidden_states, layer_past, mask
-                )
+                hidden_states, present = torch.utils.checkpoint.checkpoint(block, hidden_states, layer_past, mask)
             else:
                 hidden_states, present = block(hidden_states, layer_past, mask)
             presents.append(present)
@@ -256,9 +241,7 @@ class GPT2SimpleLM(nn.Module):
         """ Initialize the weights.
         """
         if isinstance(module, (nn.Linear, nn.Embedding)):
-            module.weight.data.normal_(
-                mean=0.0, std=self.config.initializer_range
-            )
+            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
         elif isinstance(module, LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
@@ -280,25 +263,15 @@ class GPT2SimpleLM(nn.Module):
 
         if mask is None:
             # print("mask is not provided")
-            mask = torch.ones(
-                input_ids.shape[0],
-                past_length,
-                dtype=torch.bool,
-                device=input_ids.device
-            )
+            mask = torch.ones(input_ids.shape[0], past_length, dtype=torch.bool, device=input_ids.device)
 
         # Fast way to compute lower triangle attention mask
         # shape: (batch, num_head, key_length, query_length/seq_length)
-        mask = mask.view(input_ids.shape[0], 1, 1, mask.shape[1]).repeat(
-            1, self.config.n_head, mask.shape[1], 1
-        )
+        mask = mask.view(input_ids.shape[0], 1, 1, mask.shape[1]).repeat(1, self.config.n_head, mask.shape[1], 1)
         mask = mask & mask.permute(0, 1, 3, 2)
-        mask = torch.tril(mask.byte())
-        mask = mask.bool()
+        mask = torch.tril(mask)
         mask = mask[:, :, -input_ids.shape[1]:, :]
 
-        hidden_states, presents = self.transformer(
-            input_ids, position_ids, past, mask
-        )
+        hidden_states, presents = self.transformer(input_ids, position_ids, past, mask)
         lm_logits = self.lm_head(hidden_states)
         return lm_logits, presents

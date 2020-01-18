@@ -31,12 +31,19 @@ class CachedBertDecoderEmbeddings(nn.Module):
         self.LayerNorm = LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(self, input_ids, past_length, token_type_ids=None):
-        position_ids = torch.arange(past_length,
-                                    input_ids.shape[-1] + past_length,
-                                    dtype=torch.long,
-                                    device=input_ids.device)
-        position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
+    def forward(self, input_ids, token_type_ids=None, position_ids=None):
+        seq_length = input_ids.size(1)
+        if position_ids is None:
+            if self.config.padding_idx > 0:
+                position_ids = torch.arange(
+                    self.config.padding_idx + 1,
+                    seq_length + self.config.padding_idx + 1,
+                    dtype=torch.long,
+                    device=input_ids.device
+                )
+            else:
+                position_ids = torch.arange(seq_length, dtype=torch.long, device=input_ids.device)
+            position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
 
         words_embeddings = self.word_embeddings(input_ids)
         position_embeddings = self.position_embeddings(position_ids)
@@ -44,6 +51,7 @@ class CachedBertDecoderEmbeddings(nn.Module):
         embeddings = words_embeddings + position_embeddings
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
+
         return embeddings
 
 
@@ -60,10 +68,9 @@ class CachedBertEncoderEmbeddings(nn.Module):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, input_ids, past_length, token_type_ids=None):
-        position_ids = torch.arange(past_length,
-                                    input_ids.shape[-1] + past_length,
-                                    dtype=torch.long,
-                                    device=input_ids.device)
+        position_ids = torch.arange(
+            past_length, input_ids.shape[-1] + past_length, dtype=torch.long, device=input_ids.device
+        )
         position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
 
         if token_type_ids is None:
@@ -93,8 +100,7 @@ class CachedBertSelfAttention(nn.Module):
         self.dropout = nn.Dropout(config.attention_dropout_prob)
 
     def transpose_for_scores(self, x: torch.Tensor) -> torch.Tensor:
-        new_x_shape = x.size()[:-1] + (self.num_attention_heads,
-                                       self.attention_head_size)
+        new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(*new_x_shape)
         return x.permute(0, 2, 1, 3)
 
@@ -116,11 +122,8 @@ class CachedBertSelfAttention(nn.Module):
         present = torch.stack((key_layer, value_layer), dim=0)
 
         # Take the dot product between "query" and "key" to get the raw attention scores.
-        attention_scores = torch.matmul(query_layer,
-                                        key_layer.transpose(-1, -2))
-        attention_scores = attention_scores / math.sqrt(
-            self.num_attention_heads
-        )
+        attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
+        attention_scores = attention_scores / math.sqrt(self.num_attention_heads)
 
         nd, ns = attention_scores.size(-2), attention_scores.size(-1)
         mask = mask[:, :, ns - nd:ns, :ns]
@@ -137,8 +140,7 @@ class CachedBertSelfAttention(nn.Module):
 
         context_layer = torch.matmul(attention_probs, value_layer)
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
-        new_context_layer_shape = context_layer.size()[:-2] + (
-            self.all_head_size, )
+        new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size, )
         context_layer = context_layer.view(*new_context_layer_shape)
 
         # return two tensors
@@ -205,8 +207,7 @@ class CachedBertLayer(nn.Module):
         self.output = CachedBertOutput(config)
 
     def forward(self, hidden_states, layer_past, mask):
-        attention_output, present = self.attention(hidden_states, layer_past,
-                                                   mask)
+        attention_output, present = self.attention(hidden_states, layer_past, mask)
         intermediate_output = self.intermediate(attention_output)
         layer_output = self.output(intermediate_output, attention_output)
         return layer_output, present
@@ -217,13 +218,11 @@ class CachedBertModel(nn.Module):
         super().__init__()
         self.layer = nn.ModuleList([CachedBertLayer(config) for _ in range(config.num_hidden_layers)])
 
-    def forward(self, hidden_states, mask,
-                past: List) -> Tuple[torch.Tensor, List]:
+    def forward(self, hidden_states, mask, past: List) -> Tuple[torch.Tensor, List]:
         presents = []
 
         for layer_block, layer_past in zip(self.layer, past):
-            hidden_states, present = layer_block(hidden_states, layer_past,
-                                                 mask)
+            hidden_states, present = layer_block(hidden_states, layer_past, mask)
             presents.append(present)
 
         return hidden_states, presents
@@ -236,38 +235,32 @@ class CachedBertDecoder(nn.Module):
         self.encoder = CachedBertModel(config)
         self.num_attention_heads = config.num_attention_heads
 
-    def forward(self, input_ids, mask, past=None, past_length=None):
+    def forward(self, input_ids, past=None, mask: torch.BoolTensor = None, token_type_ids=None, position_ids=None):
         """
         mask: [batch_size, seq_length] is attention mask
         """
-        # Fast way to compute lower triangle attention mask
-        mask = mask.to(dtype=torch.uint8)
-        mask = mask.view(input_ids.shape[0], 1, 1,
-                         -1).expand(input_ids.shape[0], self.num_attention_heads, mask.shape[1],
-                                    mask.shape[1])
-        mask = (mask + mask.permute(0, 1, 3, 2)) / 2
-
-        # fp16 compatibility
-        mask = mask.to(dtype=next(self.parameters()).dtype)
-        # lower triangle matrix
-        mask = torch.tril(mask)
-
         # past length calculation and dealing with past
         if past is None:
-            past_length = 0
+            past_length = input_ids.shape[1]
             past = [None] * 12
         else:
-            if past_length is None:
-                past_length = past[0][0].size(-2)
-            else:
-                past_length = past_length
+            # count self
+            past_length = past[0].shape[3] + input_ids.shape[1]
+
+        if mask is None:
+            # print("mask is not provided")
+            mask = torch.ones(input_ids.shape[0], past_length, dtype=torch.bool, device=input_ids.device)
+
+        # Fast way to compute lower triangle attention mask
+        mask = mask.view(input_ids.shape[0], 1, 1, mask.shape[1]).repeat(1, self.num_attention_heads, mask.shape[1], 1)
+        mask = mask & mask.permute(0, 1, 3, 2)
+        mask = torch.tril(mask)
 
         # calculate embedding output
-        embedding_output = self.embeddings(input_ids, past_length)
+        embedding_output = self.embeddings(input_ids, mask=mask, position_ids=position_ids)
 
         # Transformer layer
-        last_layer_output, presents = self.encoder(embedding_output, mask,
-                                                   past)
+        last_layer_output, presents = self.encoder(embedding_output, mask=mask, past=past)
 
         return last_layer_output, presents
 
@@ -289,9 +282,8 @@ class CachedBertDecoderLM(nn.Module):
         """
         self.projection.weight = self.transformer.embeddings.word_embeddings.weight
 
-    def forward(self, input_ids, mask, past=None, past_length=None):
-        hidden_states, presents = self.transformer(input_ids, mask, past,
-                                                   past_length)
+    def forward(self, input_ids, mask, past=None, position_ids=None):
+        hidden_states, presents = self.transformer(input_ids, mask=mask, past=past, position_ids=position_ids)
         lm_logits = self.projection(hidden_states)
         return lm_logits, presents
 
@@ -311,8 +303,7 @@ class CachedBertEncoder(nn.Module):
         # Fast way to compute lower triangle attention mask
         mask = mask.to(dtype=torch.uint8)
         mask = mask.view(input_ids.shape[0], 1, 1,
-                         -1).expand(input_ids.shape[0], self.num_attention_heads, mask.shape[1],
-                                    mask.shape[1])
+                         -1).expand(input_ids.shape[0], self.num_attention_heads, mask.shape[1], mask.shape[1])
         mask = (mask + mask.permute(0, 1, 3, 2)) / 2
         # fp16 compatibility
         mask = mask.to(dtype=next(self.parameters()).dtype)
@@ -325,11 +316,9 @@ class CachedBertEncoder(nn.Module):
             past_length = past[0][0].size(-2)
 
         # calculate embedding output
-        embedding_output = self.embeddings(input_ids, past_length,
-                                           token_type_ids)
+        embedding_output = self.embeddings(input_ids, past_length, token_type_ids)
 
         # Transformer layer
-        last_layer_output, presents = self.encoder(embedding_output, mask,
-                                                   past)
+        last_layer_output, presents = self.encoder(embedding_output, mask, past)
 
         return last_layer_output, presents
