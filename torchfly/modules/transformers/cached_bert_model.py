@@ -67,11 +67,19 @@ class CachedBertEncoderEmbeddings(nn.Module):
         self.LayerNorm = LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(self, input_ids, past_length, token_type_ids=None):
-        position_ids = torch.arange(
-            past_length, input_ids.shape[-1] + past_length, dtype=torch.long, device=input_ids.device
-        )
-        position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
+    def forward(self, input_ids, token_type_ids=None, position_ids=None):
+        seq_length = input_ids.size(1)
+        if position_ids is None:
+            if self.config.padding_idx > 0:
+                position_ids = torch.arange(
+                    self.config.padding_idx + 1,
+                    seq_length + self.config.padding_idx + 1,
+                    dtype=torch.long,
+                    device=input_ids.device
+                )
+            else:
+                position_ids = torch.arange(seq_length, dtype=torch.long, device=input_ids.device)
+            position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
 
         if token_type_ids is None:
             token_type_ids = torch.zeros_like(input_ids)
@@ -257,7 +265,7 @@ class CachedBertDecoder(nn.Module):
         mask = torch.tril(mask)
 
         # calculate embedding output
-        embedding_output = self.embeddings(input_ids, mask=mask, position_ids=position_ids)
+        embedding_output = self.embeddings(input_ids, position_ids=position_ids)
 
         # Transformer layer
         last_layer_output, presents = self.encoder(embedding_output, mask=mask, past=past)
@@ -296,27 +304,29 @@ class CachedBertEncoder(nn.Module):
         self.num_hidden_layers = config.num_hidden_layers
         self.num_attention_heads = config.num_attention_heads
 
-    def forward(self, input_ids, mask, token_type_ids=None, past=None):
+    def forward(self, input_ids, mask, token_type_ids=None, past=None, position_ids=None):
         """
         mask: [batch_size, seq_length] is attention mask
         """
-        # Fast way to compute lower triangle attention mask
-        mask = mask.to(dtype=torch.uint8)
-        mask = mask.view(input_ids.shape[0], 1, 1,
-                         -1).expand(input_ids.shape[0], self.num_attention_heads, mask.shape[1], mask.shape[1])
-        mask = (mask + mask.permute(0, 1, 3, 2)) / 2
-        # fp16 compatibility
-        mask = mask.to(dtype=next(self.parameters()).dtype)
-
         # past length calculation and dealing with past
         if past is None:
-            past_length = 0
-            past = [None] * self.num_hidden_layers
+            past_length = input_ids.shape[1]
+            past = [None] * 12
         else:
-            past_length = past[0][0].size(-2)
+            # count self
+            past_length = past[0].shape[3] + input_ids.shape[1]
+
+        if mask is None:
+            # print("mask is not provided")
+            mask = torch.ones(input_ids.shape[0], past_length, dtype=torch.bool, device=input_ids.device)
+
+        # Fast way to compute lower triangle attention mask
+        mask = mask.view(input_ids.shape[0], 1, 1, mask.shape[1]).repeat(1, self.num_attention_heads, mask.shape[1], 1)
+        mask = mask & mask.permute(0, 1, 3, 2)
+        mask = torch.tril(mask)
 
         # calculate embedding output
-        embedding_output = self.embeddings(input_ids, past_length, token_type_ids)
+        embedding_output = self.embeddings(input_ids, position_ids=position_ids)
 
         # Transformer layer
         last_layer_output, presents = self.encoder(embedding_output, mask, past)
