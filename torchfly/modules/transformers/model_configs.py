@@ -13,6 +13,7 @@ class ChineseBERTBaseConfig:
     type_vocab_size = 2
 
 
+
 class UnifiedRobertaBaseConfig:
     attention_dropout_prob = 0.1
     hidden_dropout_prob = 0.1
